@@ -1,0 +1,56 @@
+/* 1. Dark Theme for the Whole App */
+body {
+  background-color: #0b0e14;
+  /* Deep Navy/Black */
+  color: #f0f0f0;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* 2. The Glassmorphism Sidebar */
+.sidebar {
+  background: rgba(20, 25, 35, 0.7);
+  /* Transparent Dark */
+  backdrop-filter: blur(12px);
+  /* Blur effect */
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  height: 100vh;
+}
+
+/* 3. High-Tech Cards for Weather & Stats */
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 15px;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: #3498db;
+  /* Blue glow on hover */
+  transform: translateY(-2px);
+}
+
+/* 4. Map Container Polish */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+/* 5. Custom Button Styling */
+button.calculate-btn {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
