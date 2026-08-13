@@ -126,6 +126,8 @@ export interface Route {
   alternativeRoutes: AlternativeRoute[];
   ships?: Ship[];
   icebergs?: Iceberg[];
+  fuelEstimate?: number;
+  avgSpeed?: number;
   mlPredictions?: {
     collisionProbability: number;
     weatherRiskMatrix: Matrix;
