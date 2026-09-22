@@ -80,6 +80,64 @@ export interface WeatherCondition {
   currentSpeed?: number;
 }
 
+export interface LiveWeatherObservation {
+  status: 'LIVE' | 'UNAVAILABLE' | 'INVALID_LOCATION' | 'STALE';
+  provider: string;
+  timestamp?: string;
+  receivedAt: string;
+  coordinates: { latitude: number; longitude: number };
+  current?: {
+    temperatureCelsius?: number;
+    apparentTemperatureCelsius?: number;
+    windSpeedKmh?: number;
+    windDirectionDegrees?: number;
+    windGustsKmh?: number;
+    precipitationMm?: number;
+    snowfallCm?: number;
+    pressureHpa?: number;
+    weatherCode?: number;
+  };
+  marine?: {
+    waveHeightMeters?: number;
+    waveDirectionDegrees?: number;
+    wavePeriodSeconds?: number;
+    swellHeightMeters?: number;
+  };
+  forecast?: {
+    time: string[];
+    temperatureCelsius?: number[];
+    windSpeedKmh?: number[];
+    precipitationProbability?: number[];
+    weatherCode?: number[];
+  };
+  error?: string;
+  persistenceStatus?: 'PERSISTED' | 'PERSISTENCE_UNAVAILABLE';
+}
+
+export type VesselClass = 'Arc7' | 'Arc4' | 'Non-Ice';
+
+export type RouteStrategy =
+  | 'shortest'
+  | 'safest'
+  | 'fuel-efficient'
+  | 'weather-optimized'
+  | 'low-sea-ice'
+  | 'low-traffic';
+
+export interface RouteSegment {
+  latitude: number;
+  longitude: number;
+  weather: string;
+  windSpeed: number;
+  visibility: WeatherCondition['visibility'];
+  waveHeight: number;
+  seaIceConcentration: number;
+  icebergRisk: number;
+  trafficDensity: number;
+  riskScore: number;
+  timestamp: string;
+}
+
 export interface AlertLocation {
   latitude: number;
   longitude: number;
@@ -104,8 +162,8 @@ export interface Alert {
 export interface AlternativeRoute {
   coordinates: [number, number][];
   distance: number;
-  estimatedTime: number;
-  riskLevel: 'Low' | 'Medium' | 'High';
+  estimatedTimeMinutes: number;
+  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
   fuelConsumption?: number;
   costEstimate?: number;
   environmentalImpact?: number;
@@ -114,11 +172,14 @@ export interface AlternativeRoute {
 
 export interface Route {
   id: string;
+  strategy?: RouteStrategy;
+  label?: string;
+  score?: number;
   departure: Port;
   arrival: Port;
   distance: number;
-  estimatedTime: number;
-  riskLevel: 'Low' | 'Medium' | 'High';
+  estimatedTimeMinutes: number;
+  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
   weatherConditions: WeatherCondition;
   trafficCongestion: number;
   coordinates: [number, number][];
@@ -142,6 +203,14 @@ export interface Route {
     carbonFootprint: number;
     marineLifeImpact: number;
     noiseLevel: number;
+  };
+  segments?: RouteSegment[];
+  validation?: {
+    waterOnly: boolean;
+    valid: boolean;
+    checkedPoints: number;
+    checkedSegments: number;
+    reason?: string;
   };
 }
 

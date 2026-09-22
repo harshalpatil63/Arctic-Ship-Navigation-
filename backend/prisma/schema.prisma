@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db { 
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(OPERATOR)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  @@map("users")
+}
+
+model Port {
+  id          String   @id
+  name        String
+  country     String
+  latitude    Float
+  longitude   Float
+  congestion  Float
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+  departures  Voyage[] @relation("departure")
+  arrivals    Voyage[] @relation("arrival")
+  routesFrom  Route[] @relation("routeDeparture")
+  routesTo    Route[] @relation("routeArrival")
+  @@map("ports")
+}
+
+model Ship {
+  id             String         @id
+  mmsi           String         @unique
+  name           String
+  latitude       Float
+  longitude      Float
+  speed          Float
+  heading        Float
+  destination    String
+  cargoType      String         @map("cargo_type")
+  status         String
+  lastUpdated    DateTime       @updatedAt @map("last_updated")
+  positions      ShipPosition[]
+  voyages        Voyage[]
+  predictions    RiskPrediction[]
+  @@map("ships")
+}
+
+model ShipPosition {
+  id        String   @id @default(uuid())
+  shipId    String   @map("ship_id")
+  latitude  Float
+  longitude Float
+  speed     Float
+  heading   Float
+  timestamp DateTime @default(now())
+  ship      Ship     @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  @@index([shipId, timestamp])
+  @@map("ship_positions")
+}
+
+model Voyage {
+  id              String        @id @default(uuid())
+  shipId          String        @map("ship_id")
+  sourceId        String        @map("source_id")
+  destinationId   String        @map("destination_id")
+  startedAt       DateTime      @default(now()) @map("started_at")
+  completedAt     DateTime?     @map("completed_at")
+  currentRouteId  String?       @map("current_route_id")
+  status          String        @default("PLANNED")
+  ship            Ship          @relation(fields: [shipId], references: [id])
+  source          Port          @relation("departure", fields: [sourceId], references: [id])
+  destination     Port          @relation("arrival", fields: [destinationId], references: [id])
+  routes          Route[]
+  routeChanges    RouteChange[]
+  weatherEvents   WeatherEvent[]
+  alerts          Alert[]
+  @@index([shipId, status])
+  @@map("voyages")
+}
+
+model Route {
+  id            String        @id @default(uuid())
+  voyageId      String?       @map("voyage_id")
+  departureId   String        @map("departure_port_id")
+  arrivalId     String        @map("arrival_port_id")
+  strategy      String
+  label         String
+  distance      Float
+  estimatedTime Float         @map("estimated_time")
+  fuelEstimate  Float         @map("fuel_estimate")
+  riskScore     Float         @map("risk_score")
+  riskLevel     String        @map("risk_level")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  voyage        Voyage?       @relation(fields: [voyageId], references: [id])
+  departure     Port          @relation("routeDeparture", fields: [departureId], references: [id])
+  arrival       Port          @relation("routeArrival", fields: [arrivalId], references: [id])
+  segments      RouteSegment[]
+  alerts        Alert[]
+  changesFrom   RouteChange[] @relation("oldRoute")
+  changesTo     RouteChange[] @relation("newRoute")
+  @@index([voyageId, strategy])
+  @@map("routes")
+}
+
+model RouteSegment {
+  id                     String   @id @default(uuid())
+  routeId                String   @map("route_id")
+  sequenceNumber         Int      @map("sequence_number")
+  latitude               Float
+  longitude              Float
+  weather                String
+  windSpeed              Float    @map("wind_speed")
+  visibility             String
+  waveHeight             Float    @map("wave_height")
+  seaIceConcentration    Float    @map("sea_ice_concentration")
+  icebergRisk            Float    @map("iceberg_risk")
+  trafficDensity         Float    @map("traffic_density")
+  riskScore              Float    @map("risk_score")
+  timestamp              DateTime @default(now())
+  route                  Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  @@unique([routeId, sequenceNumber])
+  @@map("route_segments")
+}
+
+model WeatherRecord {
+  id                  String   @id @default(uuid())
+  latitude            Float
+  longitude           Float
+  temperature         Float?
+  windSpeed           Float?   @map("wind_speed")
+  visibility          Float?
+  waveHeight          Float?   @map("wave_height")
+  seaIceConcentration Float?   @map("sea_ice_concentration")
+  snowfall            Float?
+  rainfall            Float?
+  provider            String
+  timestamp           DateTime @default(now())
+  receivedAt          DateTime @default(now()) @map("received_at")
+  @@index([latitude, longitude, timestamp])
+  @@map("weather_records")
+}
+
+model WeatherEvent {
+  id          String   @id @default(uuid())
+  voyageId    String   @map("voyage_id")
+  routeId     String?  @map("route_id")
+  eventType   String   @map("event_type")
+  severity    String
+  latitude    Float
+  longitude   Float
+  description String
+  timestamp   DateTime @default(now())
+  voyage      Voyage   @relation(fields: [voyageId], references: [id], onDelete: Cascade)
+  @@map("weather_events")
+}
+
+model Iceberg {
+  id              String   @id @default(uuid())
+  name            String
+  latitude        Float
+  longitude       Float
+  size            String
+  driftSpeed      Float    @map("drift_speed")
+  riskProbability Float    @map("risk_probability")
+  lastSeen        DateTime @default(now()) @map("last_seen")
+  estimatedMeltDate DateTime? @map("estimated_melt_date")
+  @@map("icebergs")
+}
+
+model TrafficRecord {
+  id        String   @id @default(uuid())
+  latitude  Float
+  longitude Float
+  density   Float
+  timestamp DateTime @default(now())
+  @@map("traffic_records")
+}
+
+model Alert {
+  id          String   @id @default(uuid())
+  voyageId    String?  @map("voyage_id")
+  routeId     String?  @map("route_id")
+  type        String
+  severity    String
+  message     String
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime @default(now()) @map("created_at")
+  voyage      Voyage?  @relation(fields: [voyageId], references: [id])
+  route       Route?   @relation(fields: [routeId], references: [id])
+  @@index([severity, createdAt])
+  @@map("alerts")
+}
+
+model RiskPrediction {
+  id                  String   @id @default(uuid())
+  shipId              String   @map("ship_id")
+  icebergId           String?  @map("iceberg_id")
+  routeId             String?  @map("route_id")
+  collisionProbability Float    @map("collision_probability")
+  riskLevel           String   @map("risk_level")
+  score               Float
+  reasons             Json
+  createdAt           DateTime @default(now()) @map("created_at")
+  ship                Ship     @relation(fields: [shipId], references: [id])
+  @@map("risk_predictions")
+}
+
+model RouteChange {
+  id         String   @id @default(uuid())
+  voyageId   String   @map("voyage_id")
+  oldRouteId String?  @map("old_route_id")
+  newRouteId String  @map("new_route_id")
+  reason     String
+  riskBefore Float    @map("risk_before")
+  riskAfter  Float    @map("risk_after")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  voyage     Voyage   @relation(fields: [voyageId], references: [id], onDelete: Cascade)
+  oldRoute   Route?   @relation("oldRoute", fields: [oldRouteId], references: [id])
+  newRoute   Route    @relation("newRoute", fields: [newRouteId], references: [id])
+  @@map("route_changes")
+}
+
+enum UserRole {
+  ADMIN
+  CAPTAIN
+  OPERATOR
+}

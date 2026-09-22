@@ -3,15 +3,18 @@ import {
   Navigation, ArrowRight, Anchor, MapPin,
   Snowflake, BarChart3, AlertTriangle, Ship
 } from 'lucide-react';
-import { getAllPorts } from '../utils/generators';
+import { useStore } from '../store';
 
 interface HomePageProps {
   onNavigate: (page: 'dashboard') => void;
 }
 
-const ports = getAllPorts();
-
 const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  const ports = useStore((state) => state.ports);
+  const portsStatus = useStore((state) => state.portsStatus);
+  const portsError = useStore((state) => state.portsError);
+  const loadPorts = useStore((state) => state.loadPorts);
+
   return (
     <div className="min-h-screen pt-16">
 
@@ -110,7 +113,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-white">Port database</h2>
-              <p className="text-xs text-slate-500 mt-1">{ports.length} polar ports across Arctic and Antarctic regions</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {portsStatus === 'loading' ? 'Loading live port records...' : `${ports.length} live polar ports`}
+              </p>
             </div>
             <Anchor className="w-5 h-5 text-slate-700" />
           </div>
@@ -128,7 +133,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40">
-                {ports.map((port) => (
+                {ports.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-xs text-amber-400">
+                      {portsStatus === 'error' ? portsError || 'Unable to load ports' : portsStatus === 'empty' ? 'No ports available' : 'Loading live ports...'}
+                      {portsStatus === 'error' && (
+                        <button type="button" onClick={() => void loadPorts()} className="block mx-auto mt-2 text-cyan-400 hover:text-cyan-300 underline">
+                          Retry
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ) : ports.map((port) => (
                   <tr key={port.id} className="hover:bg-slate-800/20 transition-colors">
                     <td className="px-4 py-3">
                       <span className="text-xs font-medium text-white">{port.name}</span>

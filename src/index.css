@@ -21,12 +21,56 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  :root {
+    --console-bg: #020617;
+    --console-panel: rgba(15, 23, 42, 0.82);
+    --console-panel-alt: rgba(15, 23, 42, 0.62);
+    --console-border: rgba(148, 163, 184, 0.12);
+    --console-text: #e2e8f0;
+    --console-muted: #94a3b8;
+  }
+
+  html[data-theme='light'] {
+    --console-bg: #edf6fb;
+    --console-panel: rgba(255, 255, 255, 0.88);
+    --console-panel-alt: rgba(230, 240, 247, 0.8);
+    --console-border: rgba(100, 116, 139, 0.18);
+    --console-text: #102a43;
+    --console-muted: #486581;
+  }
+
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: #020617;
-    color: #e2e8f0;
+    background: var(--console-bg);
+    color: var(--console-text);
     overflow-x: hidden;
   }
+
+  html[data-theme='light'] body {
+    background: var(--console-bg);
+    color: var(--console-text);
+  }
+
+  html[data-theme='light'] .bg-\[\#020617\] { background-color: #e8f1f5 !important; }
+  html[data-theme='light'] .bg-slate-950\/90,
+  html[data-theme='light'] .bg-slate-950\/85,
+  html[data-theme='light'] .bg-slate-950\/60,
+  html[data-theme='light'] .bg-slate-950\/50,
+  html[data-theme='light'] .bg-slate-950\/40 { background-color: rgba(255, 255, 255, 0.86) !important; }
+  html[data-theme='light'] .bg-slate-900\/50,
+  html[data-theme='light'] .bg-slate-900\/60 { background-color: rgba(220, 234, 240, 0.9) !important; }
+  html[data-theme='light'] .text-white { color: #102a43 !important; }
+  html[data-theme='light'] .text-slate-200,
+  html[data-theme='light'] .text-slate-300 { color: #243b53 !important; }
+  html[data-theme='light'] .text-slate-400,
+  html[data-theme='light'] .text-slate-500 { color: #486581 !important; }
+  html[data-theme='light'] .text-slate-600,
+  html[data-theme='light'] .text-slate-700 { color: #627d98 !important; }
+  html[data-theme='light'] .border-slate-800\/50,
+  html[data-theme='light'] .border-slate-800\/40,
+  html[data-theme='light'] .border-slate-800 { border-color: rgba(98, 125, 152, 0.28) !important; }
+  html[data-theme='light'] .glass-strong { background: rgba(241, 248, 250, 0.9); }
+  html[data-theme='light'] .glass-light { background: rgba(255, 255, 255, 0.72); }
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {

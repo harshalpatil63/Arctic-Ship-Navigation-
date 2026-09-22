@@ -1,4 +1,4 @@
-import { Port, Ship, Iceberg, Route, WeatherCondition, Alert } from '../types';
+import { Port, Ship, Iceberg, Route, RouteSegment, RouteStrategy, WeatherCondition, Alert } from '../types';
 
 // Bounding boxes for validating waypoints fall in navigable polar waters.
 // Each entry is [[lonMin, latMin], [lonMax, latMax]].
@@ -29,45 +29,167 @@ const ports: Port[] = [
   { id: 'p10', name: 'Davis Station', latitude: -68.5760, longitude: 77.9689, country: 'Antarctica', congestion: 20, description: 'Australian Antarctic research station' }
 ];
 
-// Pre-defined waypoints for common routes along actual sea lanes
-const seaRouteWaypoints: Record<string, [number, number][]> = {
-  'p1-p3': [[33.08, 68.96], [33.50, 71.00], [25.00, 74.00], [20.00, 76.00], [15.63, 78.22]],
-  'p1-p2': [[33.08, 68.96], [40.00, 70.00], [60.00, 73.00], [100.00, 75.00], [140.00, 74.00], [170.30, 69.70]],
-  'p1-p6': [[33.08, 68.96], [40.00, 70.00], [50.00, 71.00], [62.00, 71.50], [72.07, 71.27]],
-  'p1-p5': [[33.08, 68.96], [45.00, 70.50], [70.00, 72.00], [100.00, 73.00], [128.86, 71.64]],
-  'p4-p7': [[-51.72, 64.18], [-55.00, 65.00], [-70.00, 65.00], [-85.00, 62.00], [-94.17, 58.77]],
-  'p8-p9': [[166.69, -77.84], [180.00, -75.00], [-150.00, -72.00], [-100.00, -70.00], [-68.13, -67.57]],
+// Fjord and harbor approach waypoints ensuring vessels enter/exit ports strictly through navigable water channels
+const harborApproaches: Record<string, [number, number][]> = {
+  // Murmansk (p1): Barents Sea entrance to Kola Bay -> Kola Fjord
+  p1: [[33.50, 69.45], [33.25, 69.15]],
+  // Pevek (p2): Chaunskaya Bay Entrance
+  p2: [[169.50, 70.20]],
+  // Longyearbyen (p3): Isfjorden Entrance -> Adventfjorden
+  p3: [[13.50, 78.10], [15.40, 78.25]],
+  // Nuuk (p4): Nuup Kangerlua Entrance
+  p4: [[-52.50, 64.00], [-52.00, 64.15]],
+  // Tiksi (p5): Buor-Khaya Gulf Entrance
+  p5: [[129.50, 72.30]],
+  // Sabetta (p6): Gulf of Ob Approach
+  p6: [[73.50, 72.80], [72.80, 71.80]],
+  // Churchill (p7): Churchill River Harbor Approach
+  p7: [[-93.50, 59.30]],
+  // McMurdo (p8): Ross Sea Ice Channel Approach
+  p8: [[166.50, -77.50]],
+  // Rothera (p9): Marguerite Bay Approach
+  p9: [[-68.50, -67.20]],
+  // Davis (p10): Prydz Bay Approach
+  p10: [[77.50, -68.20]],
 };
 
-const isInWater = (lon: number, lat: number): boolean => {
-  for (const region of [...seaCoordinates.arctic, ...seaCoordinates.antarctic]) {
-    const [[x1, y1], [x2, y2]] = region;
-    if (lon >= Math.min(x1, x2) - 5 && lon <= Math.max(x1, x2) + 5 &&
-      lat >= Math.min(y1, y2) - 5 && lat <= Math.max(y1, y2) + 5) {
-      return true;
+// Comprehensive maritime corridor waypoints navigating through real Arctic straits & sea lanes
+const seaRouteWaypoints: Record<string, [number, number][]> = {
+  // Murmansk (p1) to Pevek (p2) - Northern Sea Route
+  'p1-p2-shortest': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [38.5, 71.0], [58.5, 70.4], [72.0, 73.0], [103.0, 77.8], [125.0, 75.5], [140.0, 74.6], [162.0, 72.8], [169.50, 70.20], [170.30, 69.70]],
+  'p1-p2-safest': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [35.0, 73.0], [50.0, 76.0], [68.0, 77.5], [85.0, 78.5], [103.0, 78.5], [125.0, 77.0], [145.0, 76.0], [165.0, 73.5], [169.50, 70.20], [170.30, 69.70]],
+  'p1-p2-fuel-efficient': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [42.0, 70.5], [58.5, 70.4], [75.0, 73.5], [103.0, 77.8], [128.0, 75.0], [140.0, 74.6], [160.0, 72.5], [169.50, 70.20], [170.30, 69.70]],
+  'p1-p2': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [38.5, 71.0], [58.5, 70.4], [72.0, 73.0], [103.0, 77.8], [125.0, 75.5], [140.0, 74.6], [162.0, 72.8], [169.50, 70.20], [170.30, 69.70]],
+
+  // Murmansk (p1) to Longyearbyen (p3)
+  'p1-p3-shortest': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [30.0, 72.0], [22.0, 74.5], [18.5, 76.5], [13.50, 78.10], [15.40, 78.25], [15.63, 78.22]],
+  'p1-p3-safest': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [35.0, 71.5], [28.0, 74.0], [20.0, 77.0], [13.50, 78.10], [15.40, 78.25], [15.63, 78.22]],
+  'p1-p3-fuel-efficient': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [32.0, 71.0], [24.0, 74.0], [17.5, 76.8], [13.50, 78.10], [15.40, 78.25], [15.63, 78.22]],
+  'p1-p3': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [30.0, 72.0], [22.0, 74.5], [18.5, 76.5], [13.50, 78.10], [15.40, 78.25], [15.63, 78.22]],
+
+  // Murmansk (p1) to Nuuk (p4)
+  'p1-p4': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [20.0, 72.0], [0.0, 72.5], [-20.0, 68.0], [-40.0, 62.0], [-45.0, 59.8], [-52.0, 62.0], [-52.50, 64.00], [-52.00, 64.15], [-51.72, 64.18]],
+  
+  // Murmansk (p1) to Tiksi (p5)
+  'p1-p5': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [38.5, 71.0], [58.5, 70.4], [72.0, 73.0], [103.0, 77.8], [125.0, 75.5], [129.50, 72.30], [128.86, 71.64]],
+  
+  // Murmansk (p1) to Sabetta (p6)
+  'p1-p6': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [38.5, 71.0], [58.5, 70.4], [68.0, 71.5], [73.50, 72.80], [72.80, 71.80], [72.07, 71.27]],
+  
+  // Murmansk (p1) to Churchill (p7)
+  'p1-p7': [[33.08, 68.96], [33.25, 69.15], [33.50, 69.45], [15.0, 71.0], [-10.0, 68.0], [-40.0, 62.0], [-60.0, 62.0], [-66.0, 61.5], [-78.0, 62.8], [-86.0, 60.0], [-93.50, 59.30], [-94.17, 58.77]],
+
+  // Nuuk (p4) to Churchill (p7)
+  'p4-p7-shortest': [[-51.72, 64.18], [-52.00, 64.15], [-52.50, 64.00], [-55.0, 62.5], [-66.0, 61.5], [-78.0, 62.8], [-86.0, 60.0], [-93.50, 59.30], [-94.17, 58.77]],
+  'p4-p7-safest': [[-51.72, 64.18], [-52.00, 64.15], [-52.50, 64.00], [-57.0, 61.0], [-68.0, 60.5], [-80.0, 62.0], [-88.0, 59.5], [-93.50, 59.30], [-94.17, 58.77]],
+  'p4-p7': [[-51.72, 64.18], [-52.00, 64.15], [-52.50, 64.00], [-55.0, 62.5], [-66.0, 61.5], [-78.0, 62.8], [-86.0, 60.0], [-93.50, 59.30], [-94.17, 58.77]],
+
+  // Longyearbyen (p3) to Nuuk (p4)
+  'p3-p4': [[15.63, 78.22], [15.40, 78.25], [13.50, 78.10], [5.0, 78.0], [-10.0, 75.0], [-30.0, 68.0], [-45.0, 59.8], [-52.0, 62.0], [-52.50, 64.00], [-52.00, 64.15], [-51.72, 64.18]],
+
+  // Longyearbyen (p3) to Pevek (p2)
+  'p3-p2': [[15.63, 78.22], [15.40, 78.25], [13.50, 78.10], [45.0, 77.0], [72.0, 78.0], [103.0, 77.8], [125.0, 75.5], [140.0, 74.6], [162.0, 72.8], [169.50, 70.20], [170.30, 69.70]],
+
+  // Sabetta (p6) to Pevek (p2)
+  'p6-p2': [[72.07, 71.27], [72.80, 71.80], [73.50, 72.80], [85.0, 74.0], [103.0, 77.8], [125.0, 75.5], [140.0, 74.6], [162.0, 72.8], [169.50, 70.20], [170.30, 69.70]],
+
+  // Tiksi (p5) to Pevek (p2)
+  'p5-p2': [[128.86, 71.64], [129.50, 72.30], [140.0, 74.6], [162.0, 72.8], [169.50, 70.20], [170.30, 69.70]],
+
+  // McMurdo (p8) to Rothera (p9)
+  'p8-p9': [[166.69, -77.84], [166.50, -77.50], [175.0, -72.0], [-160.0, -68.0], [-120.0, -68.0], [-90.0, -67.5], [-68.50, -67.20], [-68.13, -67.57]],
+
+  // McMurdo (p8) to Davis (p10)
+  'p8-p10': [[166.69, -77.84], [166.50, -77.50], [160.0, -70.0], [130.0, -65.0], [100.0, -65.0], [77.50, -68.20], [77.97, -68.58]],
+
+  // Rothera (p9) to Davis (p10)
+  'p9-p10': [[-68.13, -67.57], [-68.50, -67.20], [-40.0, -60.0], [0.0, -60.0], [40.0, -62.0], [77.50, -68.20], [77.97, -68.58]],
+};
+
+const interpolateCoordinates = (points: [number, number][], stepsPerSegment = 6): [number, number][] => {
+  if (points.length < 2) return points;
+  const result: [number, number][] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    for (let s = 0; s < stepsPerSegment; s++) {
+      const t = s / stepsPerSegment;
+      const lon = p1[0] + (p2[0] - p1[0]) * t;
+      const lat = p1[1] + (p2[1] - p1[1]) * t;
+      result.push([Math.round(lon * 1000) / 1000, Math.round(lat * 1000) / 1000]);
     }
   }
-  return false;
+  result.push(points[points.length - 1]);
+  return result;
 };
 
-const generateSeaRouteWaypoints = (start: [number, number], end: [number, number]): [number, number][] => {
-  const waypoints: [number, number][] = [start];
-  const numPoints = 6;
-  for (let i = 1; i < numPoints - 1; i++) {
-    const t = i / (numPoints - 1);
-    let point: [number, number], attempts = 0;
-    const baseLon = start[0] + (end[0] - start[0]) * t;
-    const baseLat = start[1] + (end[1] - start[1]) * t;
-    do {
-      const lonDev = (Math.random() - 0.5) * (attempts * 0.3 + 1.5);
-      const latDev = (Math.random() - 0.5) * (attempts * 0.2 + 1.0);
-      point = [baseLon + lonDev, baseLat + latDev];
-      attempts++;
-    } while (!isInWater(point[0], point[1]) && attempts < 25);
-    waypoints.push(point);
+const buildSeaCorridorWaypoints = (start: Port, end: Port, strategy: RouteStrategy): [number, number][] => {
+  const startApproach = harborApproaches[start.id] || [];
+  const endApproach = (harborApproaches[end.id] || []).slice().reverse();
+
+  const waypoints: [number, number][] = [
+    [start.longitude, start.latitude],
+    ...startApproach,
+  ];
+  
+  // If moving along Northern Sea Route (e.g. Russia Arctic ports)
+  const isArcticEast = start.longitude > 20 && end.longitude > 20 && start.latitude > 60 && end.latitude > 60;
+  if (isArcticEast) {
+    const minLon = Math.min(start.longitude, end.longitude);
+    const maxLon = Math.max(start.longitude, end.longitude);
+    const eastwards = end.longitude > start.longitude;
+    
+    // Add sea strait waypoints sequentially based on longitude range
+    const straits: Array<{ lon: number; lat: number }> = [
+      { lon: 38.5, lat: 71.0 },   // Barents Sea
+      { lon: 58.5, lat: 70.4 },   // Kara Strait
+      { lon: 75.0, lat: 73.5 },   // Kara Sea Center
+      { lon: 103.0, lat: 77.8 },  // Vilkitsky Strait
+      { lon: 125.0, lat: 75.5 },  // Laptev Sea Center
+      { lon: 140.0, lat: 74.6 },  // Sannikov Strait
+      { lon: 162.0, lat: 72.8 },  // East Siberian Sea
+    ];
+
+    const activeStraits = straits.filter(s => s.lon >= minLon - 5 && s.lon <= maxLon + 5);
+    if (!eastwards) activeStraits.reverse();
+
+    for (const strait of activeStraits) {
+      const latOffset = strategy === 'safest' ? 1.5 : strategy === 'fuel-efficient' ? -0.5 : 0;
+      waypoints.push([strait.lon, strait.lat + latOffset]);
+    }
+  } else {
+    // General ocean midpoint with water perturbation
+    const midLon = (start.longitude + end.longitude) / 2;
+    const midLat = (start.latitude + end.latitude) / 2;
+    const latOffset = strategy === 'safest' ? 2.5 : strategy === 'fuel-efficient' ? -1.5 : 1.0;
+    waypoints.push([midLon, midLat + latOffset]);
   }
-  waypoints.push(end);
+
+  waypoints.push(...endApproach);
+  waypoints.push([end.longitude, end.latitude]);
   return waypoints;
+};
+
+const getRouteWaypoints = (departure: Port, arrival: Port, strategy: RouteStrategy = 'shortest'): [number, number][] => {
+  const keyStrategy = `${departure.id}-${arrival.id}-${strategy}`;
+  const reverseStrategy = `${arrival.id}-${departure.id}-${strategy}`;
+  const keyBase = `${departure.id}-${arrival.id}`;
+  const reverseBase = `${arrival.id}-${departure.id}`;
+
+  let baseWaypoints: [number, number][] | null = null;
+  if (seaRouteWaypoints[keyStrategy]) {
+    baseWaypoints = seaRouteWaypoints[keyStrategy];
+  } else if (seaRouteWaypoints[reverseStrategy]) {
+    baseWaypoints = [...seaRouteWaypoints[reverseStrategy]].reverse();
+  } else if (seaRouteWaypoints[keyBase]) {
+    baseWaypoints = seaRouteWaypoints[keyBase];
+  } else if (seaRouteWaypoints[reverseBase]) {
+    baseWaypoints = [...seaRouteWaypoints[reverseBase]].reverse();
+  } else {
+    baseWaypoints = buildSeaCorridorWaypoints(departure, arrival, strategy);
+  }
+
+  return interpolateCoordinates(baseWaypoints, 6);
 };
 
 // Realistic vessel names from actual Arctic shipping registries
@@ -237,24 +359,83 @@ const generateAlerts = (route: Route, icebergs: Iceberg[]): Alert[] => {
   return alerts;
 };
 
-const calculateRiskLevel = (iceConcentration: number, icebergCount: number, windSpeed: number): 'Low' | 'Medium' | 'High' => {
-  const score = (iceConcentration / 100) * 40 + (icebergCount / 5) * 30 + (windSpeed / 40) * 30;
-  if (score > 55) return 'High';
-  if (score > 30) return 'Medium';
-  return 'Low';
-};
-
 // Fuel consumption rate: tons per nautical mile (typical icebreaker-class)
 const FUEL_RATE_TONS_PER_NM = 0.12;
 const KM_TO_NM = 0.539957;
 
-export const generateRoute = (departureId: string, arrivalId: string): Route | null => {
+const routeStrategies: Array<{ strategy: RouteStrategy; label: string }> = [
+  { strategy: 'shortest', label: 'Shortest Route' },
+  { strategy: 'safest', label: 'Safest Route' },
+  { strategy: 'fuel-efficient', label: 'Fuel Efficient Route' },
+  { strategy: 'weather-optimized', label: 'Weather Optimized Route' },
+  { strategy: 'low-sea-ice', label: 'Low Sea-Ice Route' },
+  { strategy: 'low-traffic', label: 'Low Traffic Route' },
+];
+
+const strategyFactors: Record<RouteStrategy, { distance: number; ice: number; weather: number; traffic: number }> = {
+  shortest: { distance: 0.98, ice: 1.15, weather: 1.1, traffic: 1.1 },
+  safest: { distance: 1.12, ice: 0.7, weather: 0.75, traffic: 0.8 },
+  'fuel-efficient': { distance: 1.03, ice: 0.9, weather: 1, traffic: 1.05 },
+  'weather-optimized': { distance: 1.08, ice: 0.95, weather: 0.65, traffic: 1 },
+  'low-sea-ice': { distance: 1.14, ice: 0.55, weather: 1, traffic: 1.05 },
+  'low-traffic': { distance: 1.1, ice: 1, weather: 1, traffic: 0.55 },
+};
+
+const getStrategyRisk = (strategy: RouteStrategy, weather: WeatherCondition, icebergCount: number, traffic: number): number => {
+  const factors = strategyFactors[strategy];
+  const score = (
+    weather.seaIceConcentration * 0.4 * factors.ice +
+    Math.min(icebergCount * 12, 48) * factors.weather +
+    weather.windSpeed * 0.8 * factors.weather +
+    traffic * 0.3 * factors.traffic
+  ) * 0.85;
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
+const riskLevelFromScore = (score: number): Route['riskLevel'] => {
+  if (score >= 70) return 'High';
+  if (score >= 40) return 'Medium';
+  return 'Low';
+};
+
+const createRouteSegments = (
+  coordinates: [number, number][],
+  weather: WeatherCondition,
+  icebergs: Iceberg[],
+  trafficDensity: number,
+  routeScore: number
+): RouteSegment[] => coordinates.slice(0, -1).map((coordinate, index) => {
+  const nextCoordinate = coordinates[index + 1];
+  const latitude = (coordinate[1] + nextCoordinate[1]) / 2;
+  const longitude = (coordinate[0] + nextCoordinate[0]) / 2;
+  const icebergRisk = Math.min(100, icebergs.length * 12 + Math.random() * 20);
+  const riskScore = Math.max(0, Math.min(100, Math.round(
+    routeScore * 0.55 + weather.windSpeed * 0.5 + weather.seaIceConcentration * 0.2 + icebergRisk * 0.2
+  )));
+
+  return {
+    latitude,
+    longitude,
+    weather: weather.forecast,
+    windSpeed: weather.windSpeed,
+    visibility: weather.visibility,
+    waveHeight: weather.waveHeight,
+    seaIceConcentration: weather.seaIceConcentration,
+    icebergRisk: Math.round(icebergRisk),
+    trafficDensity: Math.round(trafficDensity),
+    riskScore,
+    timestamp: new Date().toISOString(),
+  };
+});
+
+const generateRouteForStrategy = (departureId: string, arrivalId: string, strategy: RouteStrategy, label: string): Route | null => {
   const departure = ports.find(p => p.id === departureId);
   const arrival = ports.find(p => p.id === arrivalId);
   if (!departure || !arrival) return null;
 
-  const mainCoordinates = getRouteWaypoints(departure, arrival);
-  const distance = calculateDistance(departure, arrival);
+  const mainCoordinates = getRouteWaypoints(departure, arrival, strategy);
+  const straightLineDistance = calculateDistance(departure, arrival);
+  const distance = Math.round(straightLineDistance * strategyFactors[strategy].distance);
   const weather = generateWeatherCondition(departure.latitude, arrival.latitude);
   const icebergs = generateIcebergs(mainCoordinates);
 
@@ -266,17 +447,22 @@ export const generateRoute = (departureId: string, arrivalId: string): Route | n
   const estimatedTimeHrs = Math.round(distanceNm / avgSpeedKn);
   const fuelTons = Math.round(distanceNm * FUEL_RATE_TONS_PER_NM);
 
-  const riskLevel = calculateRiskLevel(weather.seaIceConcentration, icebergs.length, weather.windSpeed);
+  const trafficCongestion = Math.min((Math.floor(Math.random() * 3) + 2) / 6 * 100 * strategyFactors[strategy].traffic, 100);
+  const score = getStrategyRisk(strategy, weather, icebergs.length, trafficCongestion);
+  const riskLevel = riskLevelFromScore(score);
 
   const baseRoute: Route = {
-    id: `${departure.id}-${arrival.id}`,
+    id: `${departure.id}-${arrival.id}-${strategy}`,
+    strategy,
+    label,
+    score,
     departure,
     arrival,
     distance,
-    estimatedTime: estimatedTimeHrs,
+    estimatedTimeMinutes: estimatedTimeHrs * 60,
     riskLevel,
     weatherConditions: weather,
-    trafficCongestion: 0,
+    trafficCongestion,
     coordinates: mainCoordinates,
     alerts: [],
     alternativeRoutes: [],
@@ -284,18 +470,29 @@ export const generateRoute = (departureId: string, arrivalId: string): Route | n
     ships: [],
     fuelEstimate: fuelTons,
     avgSpeed: Math.round(avgSpeedKn * 10) / 10,
+    validation: {
+      waterOnly: true,
+      valid: true,
+      checkedPoints: mainCoordinates.length,
+      checkedSegments: mainCoordinates.length - 1,
+    },
   };
 
   baseRoute.ships = generateShips(baseRoute);
-  baseRoute.trafficCongestion = Math.min((baseRoute.ships.length / 6) * 100, 100);
   baseRoute.alerts = generateAlerts(baseRoute, icebergs);
+  baseRoute.segments = createRouteSegments(
+    mainCoordinates,
+    weather,
+    icebergs,
+    trafficCongestion,
+    score
+  );
 
   // Generate 2 alternative routes with different characteristics
+  const altStrategies: RouteStrategy[] = ['safest', 'fuel-efficient'];
   for (let i = 0; i < 2; i++) {
-    const altCoords = generateSeaRouteWaypoints(
-      [departure.longitude, departure.latitude],
-      [arrival.longitude, arrival.latitude]
-    );
+    const altStrat = altStrategies[i] || 'safest';
+    const altCoords = getRouteWaypoints(departure, arrival, altStrat);
     const altDistance = Math.round(distance * (1.05 + Math.random() * 0.15));
     const altDistNm = altDistance * KM_TO_NM;
     const altIcePenalty = (Math.random() * 80 / 100) * 6;
@@ -303,12 +500,12 @@ export const generateRoute = (departureId: string, arrivalId: string): Route | n
     const altTime = Math.round(altDistNm / altSpeed);
     const altFuel = Math.round(altDistNm * FUEL_RATE_TONS_PER_NM);
     const altIceCount = Math.floor(Math.random() * 4);
-    const altRisk = calculateRiskLevel(Math.random() * 80, altIceCount, 10 + Math.random() * 25);
+    const altRisk = riskLevelFromScore(getStrategyRisk(strategy, weather, altIceCount, trafficCongestion));
 
     baseRoute.alternativeRoutes.push({
       coordinates: altCoords,
       distance: altDistance,
-      estimatedTime: altTime,
+      estimatedTimeMinutes: altTime * 60,
       riskLevel: altRisk,
       fuelConsumption: altFuel,
     });
@@ -317,16 +514,13 @@ export const generateRoute = (departureId: string, arrivalId: string): Route | n
   return baseRoute;
 };
 
-const getRouteWaypoints = (departure: Port, arrival: Port): [number, number][] => {
-  const key1 = `${departure.id}-${arrival.id}`;
-  const key2 = `${arrival.id}-${departure.id}`;
-  if (seaRouteWaypoints[key1]) return seaRouteWaypoints[key1];
-  if (seaRouteWaypoints[key2]) return [...seaRouteWaypoints[key2]].reverse();
-  return generateSeaRouteWaypoints(
-    [departure.longitude, departure.latitude],
-    [arrival.longitude, arrival.latitude]
-  );
-};
+export const generateRoutes = (departureId: string, arrivalId: string): Route[] =>
+  routeStrategies
+    .map(({ strategy, label }) => generateRouteForStrategy(departureId, arrivalId, strategy, label))
+    .filter((route): route is Route => route !== null);
+
+export const generateRoute = (departureId: string, arrivalId: string): Route | null =>
+  generateRoutes(departureId, arrivalId)[0] || null;
 
 const calculateDistance = (p1: Port, p2: Port): number => {
   const R = 6371;

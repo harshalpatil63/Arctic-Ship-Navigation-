@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Navigation, Home, BarChart3, Menu, X } from 'lucide-react';
+import { Navigation, Home, BarChart3, Menu, X, Sun, Moon } from 'lucide-react';
+import { useStore } from '../store';
+import { useTheme } from '../theme/themeContext';
 
 interface NavbarProps {
   currentPage: 'home' | 'dashboard';
@@ -9,6 +11,9 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const websocketConnected = useStore((state) => state.websocketConnected);
+  const apiStatus = useStore((state) => state.apiStatus);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -71,14 +76,24 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
           })}
         </div>
 
-        {/* Status Indicator */}
-        <div className="hidden md:flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-light">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              System Online
+        {/* Live status and theme controls */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full glass-light">
+            <div className={`w-1.5 h-1.5 rounded-full ${websocketConnected && apiStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400'}`} />
+            <span className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              {websocketConnected && apiStatus === 'connected' ? 'Live Connected' : 'Live Unavailable'}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-700/60 text-slate-300 hover:text-white hover:border-cyan-500/50 transition-colors"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            <span className="text-[10px] font-semibold uppercase tracking-wider">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -94,6 +109,15 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
       {mobileOpen && (
         <div className="md:hidden glass-strong border-t border-slate-800/50 animate-slide-down">
           <div className="px-4 py-3 space-y-1">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all"
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+            </button>
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = currentPage === link.id;
