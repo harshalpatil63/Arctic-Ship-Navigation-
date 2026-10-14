@@ -1,17 +1,49 @@
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { generateRouteOptions, getRoutingProviderStatus, refreshRouteMonitoring } from './services/routeService.js';
 import { getOpenMeteoWeather } from './providers/weatherProvider.js';
 import { persistWeatherObservation } from './services/weatherService.js';
-import { prisma } from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-
 import { defaultPorts } from './config/ports.js';
 
 export const app = express();
-app.use(cors({ origin: (origin, callback) => callback(null, true) }));
-app.use(express.json());
+
+// Security HTTP headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// Rate limiting: 300 requests per 15 minutes window
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again later.' },
+});
+app.use(limiter);
+
+// Restricted CORS configuration
+const allowedOrigins = [
+  process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    return callback(new Error('Cross-Origin Request Blocked by CORS Policy'));
+  },
+  credentials: true,
+}));
+
+app.use(express.json({ limit: '1mb' }));
 
 app.get('/', (_request, response) => response.json({
   name: 'Arctic Ship Navigation API',

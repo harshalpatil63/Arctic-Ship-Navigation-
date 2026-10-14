@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Map, View } from 'ol';
 import { fromLonLat } from 'ol/proj';
 import TileLayer from 'ol/layer/Tile';
@@ -11,17 +11,17 @@ import { boundingExtent } from 'ol/extent';
 import { Style, Circle, Fill, Stroke, Text } from 'ol/style';
 import {
   Navigation, ArrowLeft, Fuel, Gauge, ShieldAlert,
-  Thermometer, Wind, Waves, FileText, CheckCircle2,
+  Thermometer, Waves, FileText, CheckCircle2,
   RefreshCw, Crosshair, ChevronRight, Compass,
-  AlertTriangle, MapPin, Calendar, Anchor, Award
+  Anchor, Award
 } from 'lucide-react';
 import { useStore } from '../store';
 import { generateRoutePDF } from '../utils/pdfReport';
 import RiskBadge from '../components/RiskBadge';
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend
+  ResponsiveContainer
 } from 'recharts';
 
 interface ResultsDashboardProps {
@@ -59,13 +59,10 @@ export const ResultsDashboardPage: React.FC<ResultsDashboardProps> = ({ onNaviga
     monitoringStatus,
     refreshSelectedRouteConditions,
     vesselClass,
-    websocketConnected,
-    apiStatus,
   } = useStore();
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'environment' | 'waypoints'>('overview');
 
   // Chart data: Waypoints Environmental Timeline
   const waypointChartData = useMemo(() => {
@@ -87,7 +84,7 @@ export const ResultsDashboardPage: React.FC<ResultsDashboardProps> = ({ onNaviga
     return currentRoute.coordinates
       .filter((_, idx) => idx % step === 0)
       .slice(0, 10)
-      .map((coord, idx) => ({
+      .map((_coord, idx) => ({
         index: `#${idx + 1}`,
         temp: Number((currentRoute.weatherConditions?.temperature ?? -4) + Math.sin(idx) * 2),
         wind: Number((currentRoute.weatherConditions?.windSpeed ?? 22) + Math.cos(idx) * 6),
@@ -95,17 +92,6 @@ export const ResultsDashboardPage: React.FC<ResultsDashboardProps> = ({ onNaviga
         risk: currentRoute.riskLevel === 'Low' ? 25 : currentRoute.riskLevel === 'Medium' ? 45 : 70,
       }));
   }, [currentRoute, routeMonitoring]);
-
-  // Strategy comparison data
-  const comparisonData = useMemo(() => {
-    return routes.map((r) => ({
-      name: (r.strategy || 'Route').toUpperCase(),
-      distance: Math.round(r.distance),
-      fuel: Number(r.fuelEstimate ?? 0),
-      durationHours: Number((r.estimatedTimeMinutes / 60).toFixed(1)),
-      riskScore: r.riskLevel === 'Low' ? 25 : r.riskLevel === 'Medium' ? 50 : 75,
-    }));
-  }, [routes]);
 
   // Center & Fit Map
   const fitMap = () => {

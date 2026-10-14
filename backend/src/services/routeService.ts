@@ -12,7 +12,6 @@ import { prisma } from '../config/database.js';
 import { getOpenMeteoWeather } from '../providers/weatherProvider.js';
 import {
   RoutingProvider,
-  RoutingRequest,
   RoutingResponse,
   RouteCoordinate,
 } from '../providers/routingProvider.js';
@@ -23,6 +22,7 @@ import {
   updateRouteWeatherSegments,
 } from './routeWeatherService.js';
 import { generateMaritimeRoutes } from './maritimeNetwork.js';
+import { defaultPorts } from '../config/ports.js';
 
 export interface RouteRequest {
   departureId: string;
@@ -152,7 +152,7 @@ function getRiskLevel(score: number): 'Low' | 'Medium' | 'High' | 'Critical' {
  * Calculate route risk from available environmental data
  * Uses actual weather, ice, and traffic conditions
  */
-async function calculateRouteRisk(
+export async function calculateRouteRisk(
   geometry: RouteCoordinate[]
 ): Promise<{ score: number; level: string }> {
   if (geometry.length === 0) {
@@ -194,7 +194,7 @@ async function calculateRouteRisk(
   }
 }
 
-async function calculateRouteWeather(geometry: RouteCoordinate[]) {
+export async function calculateRouteWeather(geometry: RouteCoordinate[]) {
   const sampleIndices = geometry.length <= 5
     ? geometry.map((_, index) => index)
     : [0, Math.floor(geometry.length / 2), geometry.length - 1];
@@ -214,8 +214,6 @@ async function calculateRouteWeather(geometry: RouteCoordinate[]) {
     seaIceConcentration: 0,
   };
 }
-
-import { defaultPorts } from '../config/ports.js';
 
 /**
  * Generate route options using real marine routing provider
@@ -294,12 +292,15 @@ export async function generateRouteOptions({
   }
 
   // Process each validated marine route from provider
-  // NOTE: We skip DB persistence here because ports are in-memory only (no FK in DB).
-  // Routes are returned directly to the client without any DB write overhead.
   const processedRoutes = await Promise.all(
     waterOnlyRoutes.map(async (route) => {
       const routeId = `route-${departure.id}-${arrival.id}-${route.provider}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const fuelEstimate = Math.round(route.distance * 0.539957 * 0.12 * 10) / 10;
+      
+      // Speed-dependent fuel estimate based on cubic engine power law (P ∝ V^3, SFC ∝ V^2)
+      const typedRoute = route as { speedKnots?: number; fuelEstimate?: number };
+      const speedKnots = typedRoute.speedKnots || (route.strategy === 'fuel-efficient' ? 10.8 : route.strategy === 'safest' ? 11.8 : 13.5);
+      const speedRatio = speedKnots / 13.5;
+      const fuelEstimate = typedRoute.fuelEstimate ?? Math.round(route.distance * 0.539957 * 0.12 * Math.pow(speedRatio, 2) * 10) / 10;
 
       // Sample only start/mid/end for weather — fast, avoids hammering the API per-segment
       const sampleIndices = route.geometry.length >= 3
@@ -311,18 +312,19 @@ export async function generateRouteOptions({
       const liveWeather = weatherSamples.filter(Boolean).filter(w => w!.status === 'LIVE');
       const avg = (vals: number[]) => vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
       const weatherConditions = {
-        temperature: avg(liveWeather.map(w => w!.current?.temperatureCelsius ?? 0)),
-        windSpeed: avg(liveWeather.map(w => w!.current?.windSpeedKmh ?? 0)),
+        temperature: Math.round(avg(liveWeather.map(w => w!.current?.temperatureCelsius ?? 0)) * 10) / 10,
+        windSpeed: Math.round(avg(liveWeather.map(w => w!.current?.windSpeedKmh ?? 0)) * 10) / 10,
         visibility: 'Good' as const,
-        forecast: `Sampled at ${sampleIndices.length} points`,
-        waveHeight: avg(liveWeather.map(w => w!.marine?.waveHeightMeters ?? 0)),
+        forecast: `Sampled at ${sampleIndices.length} points via Open-Meteo`,
+        waveHeight: Math.round(avg(liveWeather.map(w => w!.marine?.waveHeightMeters ?? 0)) * 10) / 10,
         seaIceConcentration: 0,
       };
 
-      // Simple risk from wind/wave
-      const windRisk = Math.min(60, (weatherConditions.windSpeed / 60) * 60);
-      const waveRisk = Math.min(40, (weatherConditions.waveHeight / 6) * 40);
-      const riskScore = Math.round(windRisk + waveRisk);
+      // Multi-factor risk calculation from genuine environmental observations
+      const windHazard = Math.min(45, (weatherConditions.windSpeed / 50) * 45);
+      const waveHazard = Math.min(35, (weatherConditions.waveHeight / 4.5) * 35);
+      const coldHazard = weatherConditions.temperature < -15 ? 20 : weatherConditions.temperature < 0 ? 10 : 0;
+      const riskScore = Math.max(10, Math.min(95, Math.round(windHazard + waveHazard + coldHazard)));
       const riskLevel = getRiskLevel(riskScore);
 
       const processedRoute = {
@@ -357,11 +359,26 @@ export async function generateRouteOptions({
         riskScore,
         weatherConditions,
         validation: route.validation,
-        metadata: route.metadata,
+        metadata: {
+          ...route.metadata,
+          calculatedAt: new Date().toISOString(),
+          speedKnots,
+          fuelBurnModel: 'Cubic speed-power curve (P ∝ V^3)',
+          dataProvenance: {
+            weatherProvider: liveWeather.length > 0 ? 'Open-Meteo (Live)' : 'Unavailable',
+            seaIceProvider: 'UNAVAILABLE (Satellite microwave grid unconfigured)',
+            aisProvider: 'UNAVAILABLE (Authorized real AIS feed unconfigured)',
+          },
+        },
       };
 
       // Store in memory for instant monitoring lookups
       inMemoryRouteCache.set(routeId, processedRoute);
+
+      // Asynchronously persist to PostgreSQL if database connection is available
+      persistRouteToDatabase(processedRoute, departure, arrival).catch((err) => {
+        console.warn('Database persistence skipped or failed:', err instanceof Error ? err.message : err);
+      });
 
       return processedRoute;
     })
@@ -375,6 +392,74 @@ export async function generateRouteOptions({
       ? `Only ${processedRoutes.length} sufficiently different water-only routes are available for this voyage.`
       : undefined,
   };
+}
+
+async function persistRouteToDatabase(
+  route: RouteServiceResponse['routes'][0],
+  departure: typeof defaultPorts[0],
+  arrival: typeof defaultPorts[0]
+): Promise<void> {
+  try {
+    await prisma.port.upsert({
+      where: { id: departure.id },
+      create: {
+        id: departure.id,
+        name: departure.name,
+        country: departure.country,
+        latitude: departure.latitude,
+        longitude: departure.longitude,
+        congestion: departure.congestion,
+        description: departure.description,
+      },
+      update: {},
+    });
+
+    await prisma.port.upsert({
+      where: { id: arrival.id },
+      create: {
+        id: arrival.id,
+        name: arrival.name,
+        country: arrival.country,
+        latitude: arrival.latitude,
+        longitude: arrival.longitude,
+        congestion: arrival.congestion,
+        description: arrival.description,
+      },
+      update: {},
+    });
+
+    await prisma.route.create({
+      data: {
+        id: route.id,
+        departureId: departure.id,
+        arrivalId: arrival.id,
+        strategy: route.strategy,
+        label: route.label,
+        distance: route.distance,
+        estimatedTime: route.duration,
+        fuelEstimate: route.fuelEstimate,
+        riskScore: route.riskScore,
+        riskLevel: route.riskLevel,
+        segments: {
+          create: route.geometry.slice(0, 100).map(([lon, lat], idx) => ({
+            sequenceNumber: idx,
+            latitude: lat,
+            longitude: lon,
+            weather: route.weatherConditions.forecast,
+            windSpeed: route.weatherConditions.windSpeed,
+            visibility: route.weatherConditions.visibility,
+            waveHeight: route.weatherConditions.waveHeight,
+            seaIceConcentration: 0,
+            icebergRisk: 0,
+            trafficDensity: 0,
+            riskScore: route.riskScore,
+          })),
+        },
+      },
+    });
+  } catch {
+    // Non-blocking fallback if PostgreSQL is not active
+  }
 }
 
 

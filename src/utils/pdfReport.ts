@@ -273,9 +273,10 @@ export function generateRoutePDF(routes: Route[], selectedRoute: Route | null): 
   }
 
   // ─── Footer ──────────────────────────────────────────────────────
-  const totalPages = typeof (doc as any).getNumberOfPages === 'function'
-    ? doc.getNumberOfPages()
-    : (doc as any).internal?.getNumberOfPages() || 1;
+  const docRecord = doc as unknown as { getNumberOfPages?: () => number; internal?: { getNumberOfPages?: () => number } };
+  const totalPages = typeof docRecord.getNumberOfPages === 'function'
+    ? docRecord.getNumberOfPages()
+    : docRecord.internal?.getNumberOfPages?.() || 1;
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     doc.setFillColor(...DARK_BG);

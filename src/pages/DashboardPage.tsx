@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Map, View } from 'ol';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import TileLayer from 'ol/layer/Tile';
@@ -14,10 +14,7 @@ import {
   Navigation,
   AlertTriangle,
   Thermometer,
-  Wind,
   Map as MapIcon,
-  Waves,
-  Eye,
   Fuel,
   Gauge,
   RefreshCw,
@@ -28,21 +25,16 @@ import {
   ShieldAlert,
   Compass,
   BarChart3,
-  Layers,
   CloudSun,
   Activity,
   CheckCircle2,
   FileDown,
   Play,
   Pause,
-  ZoomIn,
-  ZoomOut,
   X,
-  Maximize2
 } from 'lucide-react';
 import { useStore } from '../store';
-import { RouteMonitoringSample } from '../services/api';
-import { Iceberg, LiveWeatherObservation, Port, Ship as ShipType } from '../types';
+import { Iceberg, Port, Ship as ShipType } from '../types';
 import RiskBadge from '../components/RiskBadge';
 import { generateRoutePDF } from '../utils/pdfReport';
 import { getRiskColor } from '../riskUtils';
@@ -142,9 +134,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     routeMonitoring,
     monitoringStatus,
     routes,
-    portsStatus,
-    portsError,
-    loadPorts,
     routeStatus,
     routeError,
     setDeparture,
@@ -155,15 +144,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     destinationWeather,
     sourceWeatherStatus,
     destinationWeatherStatus,
-    sourceWeatherError,
-    destinationWeatherError,
     cancelRoute,
     refreshSelectedRouteConditions,
     calculateRoute,
     selectRoute,
     websocketConnected,
-    apiStatus,
-    lastUpdated,
   } = useStore();
 
   // Reset simulation when route changes
@@ -512,28 +497,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const handleExportPDF = () => {
     if (!currentRoute) return;
     generateRoutePDF(routes.length > 0 ? routes : [currentRoute], currentRoute);
-  };
-
-  // Zoom controls for Map HUD
-  const zoomIn = () => {
-    if (!mapInstanceRef.current) return;
-    const view = mapInstanceRef.current.getView();
-    view.animate({ zoom: (view.getZoom() || 3) + 1, duration: 250 });
-  };
-
-  const zoomOut = () => {
-    if (!mapInstanceRef.current) return;
-    const view = mapInstanceRef.current.getView();
-    view.animate({ zoom: (view.getZoom() || 3) - 1, duration: 250 });
-  };
-
-  const resetView = () => {
-    if (!mapInstanceRef.current) return;
-    if (currentRoute) {
-      focusRouteOnMap();
-    } else {
-      mapInstanceRef.current.getView().animate({ center: fromLonLat([90, 70]), zoom: 3.2, duration: 500 });
-    }
   };
 
   return (

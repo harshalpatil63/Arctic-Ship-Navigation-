@@ -223,7 +223,7 @@ export async function getWeatherFromApi(
     const openMeteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,weather_code`;
     const res = await fetch(openMeteoUrl);
     if (res.ok) {
-      const data = (await res.json()) as Record<string, any>;
+      const data = (await res.json()) as { current?: Record<string, number> };
       const current = data.current || {};
       return {
         status: 'LIVE',

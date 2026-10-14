@@ -2,7 +2,7 @@ import { Port, Ship, Iceberg, Route, RouteSegment, RouteStrategy, WeatherConditi
 
 // Bounding boxes for validating waypoints fall in navigable polar waters.
 // Each entry is [[lonMin, latMin], [lonMax, latMax]].
-const seaCoordinates = {
+export const seaCoordinates = {
   arctic: [
     [[30, 69], [180, 77]],
     [[30, 65], [180, 73]],
@@ -489,13 +489,13 @@ const generateIcebergs = (routeCoordinates: [number, number][]): Iceberg[] => {
   for (let i = 0; i < numIcebergs; i++) {
     const routeIndex = Math.floor(Math.random() * (routeCoordinates.length - 1));
     const basePosition = routeCoordinates[routeIndex];
-    const isInWater = (l: number, lat: number) => true;
+    const isInWater = () => true;
     let lon: number, lat: number, attempts = 0;
     do {
       lon = basePosition[0] + (Math.random() - 0.5) * 3;
       lat = basePosition[1] + (Math.random() - 0.5) * 2;
       attempts++;
-    } while (!isInWater(lon, lat) && attempts < 15);
+    } while (!isInWater() && attempts < 15);
 
     const size = sizeNames[Math.floor(Math.random() * sizeNames.length)];
     const driftSpeed = 0.1 + Math.random() * 1.5;
@@ -716,20 +716,35 @@ const generateRouteForStrategy = (departureId: string, arrivalId: string, strate
   if (!departure || !arrival) return null;
 
   const mainCoordinates = getRouteWaypoints(departure, arrival, strategy);
-  const routeDistanceKm = calculatePolylineDistance(mainCoordinates);
-  const distance = Math.round(routeDistanceKm * strategyFactors[strategy].distance);
+  const distance = calculatePolylineDistance(mainCoordinates);
+  const distanceNm = distance * KM_TO_NM;
+
+  // Operating vessel speeds per strategy
+  // Shortest: standard full transit speed (13.5 kn)
+  // Safest: cautious navigation speed avoiding dynamic ice impact (11.8 kn)
+  // Fuel-efficient: optimal hydrodynamic eco-steaming speed (10.8 kn)
+  const strategySpeeds: Record<RouteStrategy, number> = {
+    shortest: 13.5,
+    safest: 11.8,
+    'fuel-efficient': 10.8,
+    'weather-optimized': 12.0,
+    'low-sea-ice': 11.5,
+    'low-traffic': 12.5,
+  };
+  const operatingSpeedKn = strategySpeeds[strategy] || 12.0;
+
   const weather = generateWeatherCondition(departure.latitude, arrival.latitude);
   const icebergs = generateIcebergs(mainCoordinates);
 
-  // Speed affected by ice concentration: 14 kn base, reduced by ice
-  const baseSpeedKn = 14;
-  const icePenalty = (weather.seaIceConcentration / 100) * 6; // up to 6kn slower
-  const avgSpeedKn = Math.max(baseSpeedKn - icePenalty, 5);
-  const distanceNm = distance * KM_TO_NM;
-  const estimatedTimeHrs = Math.round(distanceNm / avgSpeedKn);
-  const fuelTons = Math.round(distanceNm * FUEL_RATE_TONS_PER_NM);
+  const estimatedTimeHrs = distanceNm / operatingSpeedKn;
+  const estimatedTimeMinutes = Math.round(estimatedTimeHrs * 60);
 
-  const trafficCongestion = Math.min((Math.floor(Math.random() * 3) + 2) / 6 * 100 * strategyFactors[strategy].traffic, 100);
+  // Marine engine cubic power law: Fuel consumption per NM ∝ (V / V_design)^2
+  const speedRatio = operatingSpeedKn / 13.5;
+  const specificFuelRate = FUEL_RATE_TONS_PER_NM * Math.pow(speedRatio, 2);
+  const fuelTons = Math.round(distanceNm * specificFuelRate * 10) / 10;
+
+  const trafficCongestion = Math.min(Math.round(25 * (strategyFactors[strategy]?.traffic || 1)), 100);
   const score = getStrategyRisk(strategy, weather, icebergs.length, trafficCongestion);
   const riskLevel = riskLevelFromScore(score);
 
@@ -741,7 +756,7 @@ const generateRouteForStrategy = (departureId: string, arrivalId: string, strate
     departure,
     arrival,
     distance,
-    estimatedTimeMinutes: estimatedTimeHrs * 60,
+    estimatedTimeMinutes,
     riskLevel,
     weatherConditions: weather,
     trafficCongestion,
@@ -751,7 +766,7 @@ const generateRouteForStrategy = (departureId: string, arrivalId: string, strate
     icebergs,
     ships: [],
     fuelEstimate: fuelTons,
-    avgSpeed: Math.round(avgSpeedKn * 10) / 10,
+    avgSpeed: operatingSpeedKn,
     validation: {
       waterOnly: true,
       valid: true,
@@ -804,7 +819,7 @@ export const generateRoutes = (departureId: string, arrivalId: string): Route[] 
 export const generateRoute = (departureId: string, arrivalId: string): Route | null =>
   generateRoutes(departureId, arrivalId)[0] || null;
 
-const calculateDistance = (p1: Port, p2: Port): number => {
+export const calculateDistance = (p1: Port, p2: Port): number => {
   const R = 6371;
   const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
   const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;

@@ -6,7 +6,7 @@
  */
 
 import { BathymetricCell, GridBounds } from './bathymetricGrid.js';
-import { findPath, PathfindingResult, simplifyPath } from './aStarPathfinder.js';
+import { findPath, PathfindingResult } from './aStarPathfinder.js';
 
 export interface AlternativeRouteStrategy {
   strategy: 'safest' | 'fuel-efficient';

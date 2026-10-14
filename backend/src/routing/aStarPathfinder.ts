@@ -8,7 +8,6 @@
 import {
   BathymetricCell,
   GridBounds,
-  getGridIndex,
   getGridCoordinates,
 } from './bathymetricGrid.js';
 
@@ -114,8 +113,6 @@ export function findPath(
   bounds: GridBounds,
   resolution: number
 ): PathfindingResult {
-  const startTime = Date.now();
-
   // Validate start and goal
   const startCell = grid[startRow]?.[startCol];
   const goalCell = grid[goalRow]?.[goalCol];

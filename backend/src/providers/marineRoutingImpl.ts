@@ -8,12 +8,10 @@
 import {
   RoutingProvider,
   RoutingProviderConfig,
-  RoutingRequest,
   RoutingResponse,
 } from './routingProvider.js';
 import {
   createGEBCOProvider,
-  GEBCORoutingConfig,
 } from '../routing/gebcoMarineRoutingProvider.js';
 
 export class UnavailableMarineRoutingProvider implements RoutingProvider {
@@ -38,9 +36,7 @@ export class UnavailableMarineRoutingProvider implements RoutingProvider {
     };
   }
 
-  async calculateRoute(
-    _request: RoutingRequest
-  ): Promise<RoutingResponse> {
+  async calculateRoute(): Promise<RoutingResponse> {
     return {
       status: 'UNAVAILABLE',
       provider: this.name,
@@ -67,8 +63,9 @@ export class UnavailableMarineRoutingProvider implements RoutingProvider {
  */
 export function createRoutingProvider(
   providerName?: string,
-  config?: RoutingProviderConfig
+  _config?: RoutingProviderConfig
 ): RoutingProvider {
+  void _config;
   const provider = providerName || process.env.ROUTING_PROVIDER || 'gebco';
 
   switch (provider.toLowerCase()) {

@@ -13,7 +13,6 @@ import {
   RoutingRequest,
   RoutingResponse,
   RoutingProviderConfig,
-  RouteCoordinate,
 } from '../providers/routingProvider.js';
 import {
   buildBathymetricGrid,
@@ -23,10 +22,9 @@ import {
   VesselSpec,
   GridBounds,
 } from './bathymetricGrid.js';
-import { findPath, simplifyPath, PathfindingResult } from './aStarPathfinder.js';
+import { findPath, PathfindingResult } from './aStarPathfinder.js';
 import {
   generateAlternativeRoutes,
-  analyzeRouteCharacteristics,
 } from './alternativeRoutes.js';
 import { isWaterOnlyRoute } from './waterOnlyRouteValidation.js';
 
@@ -268,8 +266,9 @@ export class GEBCOMarineRoutingProvider implements RoutingProvider {
     bounds: GridBounds
   ) {
     const distanceKm = pathResult.totalDistance;
-    const durationMinutes = (distanceKm / this.config.vesselSpeedKnots) * 60;
-    const durationHours = durationMinutes / 60;
+    const distanceNm = distanceKm * 0.539957;
+    const durationHours = distanceNm / this.config.vesselSpeedKnots;
+    const durationMinutes = Math.round(durationHours * 60);
 
     // Format duration for display
     const hours = Math.floor(durationHours);
@@ -296,34 +295,32 @@ export class GEBCOMarineRoutingProvider implements RoutingProvider {
       source: geometry[0]!,
       destination: geometry[geometry.length - 1]!,
       geometry,
-      waypoints: geometry.map((seg, index) => ({
-        sequenceNumber: index,
-        latitude: seg.latitude,
-        longitude: seg.longitude,
-        distanceFromStart:
-          index === 0
-            ? 0
-            : index === geometry.length - 1
-              ? distanceKm
-              : pathResult.path[index - 1]?.distanceFromStart ?? 0,
-        durationFromStart:
-          ((index === 0
-            ? 0
-            : index === geometry.length - 1
-              ? distanceKm
-              : pathResult.path[index - 1]?.distanceFromStart ?? 0) /
-            this.config.vesselSpeedKnots) *
-          60,
-      })),
+      waypoints: geometry.map((seg, index) => {
+        const segDistKm = index === 0
+          ? 0
+          : index === geometry.length - 1
+            ? distanceKm
+            : pathResult.path[index - 1]?.distanceFromStart ?? 0;
+        const segDistNm = segDistKm * 0.539957;
+        const segDurationMinutes = Math.round((segDistNm / this.config.vesselSpeedKnots) * 60);
+        return {
+          sequenceNumber: index,
+          latitude: seg.latitude,
+          longitude: seg.longitude,
+          distanceFromStart: segDistKm,
+          durationFromStart: segDurationMinutes,
+        };
+      }),
       distance: Math.round(distanceKm * 10) / 10, // 1 decimal place
-      duration: Math.round(durationMinutes),
+      duration: durationMinutes,
       estimatedSpeedKnots: this.config.vesselSpeedKnots,
       metadata: {
         calculatedAt: new Date().toISOString(),
-        provider_type: 'GEBCO + A* Pathfinding',
+        provider_type: 'Bathymetric Water Grid + A* Pathfinding (Natural Earth Shoreline)',
         gridResolution: this.config.gridResolution,
         vesselDraft: this.config.vesselDraftMeters,
         algorithm: 'A* on bathymetric water grid',
+        dataProvenance: 'Natural Earth 110m vector shoreline with calibrated Arctic bathymetric depth gradient',
         waypoints: pathResult.path.length,
         durationDisplay,
         validation,

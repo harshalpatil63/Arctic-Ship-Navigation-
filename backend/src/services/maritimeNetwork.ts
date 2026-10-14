@@ -1,13 +1,5 @@
 // Global maritime water navigation network for polar and inter-ocean routes (100% water only)
 
-export interface MaritimeRouteResult {
-  strategy: 'shortest' | 'safest' | 'fuel-efficient';
-  label: string;
-  distance: number; // km
-  duration: number; // minutes
-  geometry: Array<{ latitude: number; longitude: number }>;
-}
-
 const haversineDist = (c1: [number, number], c2: [number, number]): number => {
   const R = 6371;
   const dLat = (c2[1] - c1[1]) * Math.PI / 180;
@@ -247,6 +239,27 @@ const narrowStraits = new Set([
   'hudson_strait_w', 'drake_passage_mid', 'bransfield_strait'
 ]);
 
+export interface MaritimeRouteResult {
+  strategy: 'shortest' | 'safest' | 'fuel-efficient';
+  label: string;
+  distance: number; // km
+  duration: number; // minutes
+  fuelEstimate: number; // metric tons
+  speedKnots: number;
+  geometry: Array<{ latitude: number; longitude: number }>;
+}
+
+// Strait and ice-hazard node weights for the 'safest' strategy
+const hazardNodePenalty: Record<string, number> = {
+  vilkitsky_strait: 1.8,
+  sannikov_strait: 1.6,
+  long_strait: 1.6,
+  kara_strait: 1.4,
+  drake_passage_mid: 1.5,
+  bransfield_strait: 1.3,
+  hudson_strait_w: 1.3,
+};
+
 function dijkstraPath(startId: string, endId: string, strategy: 'shortest' | 'safest' | 'fuel-efficient'): [number, number][] {
   const dist: Record<string, number> = {};
   const prev: Record<string, string | null> = {};
@@ -270,7 +283,18 @@ function dijkstraPath(startId: string, endId: string, strategy: 'shortest' | 'sa
 
     for (const neighbor of maritimeAdjacency[curr] || []) {
       if (visited.has(neighbor.node)) continue;
-      const newD = d + neighbor.dist;
+
+      let edgeCost = neighbor.dist;
+      if (strategy === 'safest') {
+        const penalty = (hazardNodePenalty[neighbor.node] || 1.0) * (hazardNodePenalty[curr] || 1.0);
+        edgeCost = neighbor.dist * penalty;
+      } else if (strategy === 'fuel-efficient') {
+        // Favor deep-sea lanes that allow steady laminar eco-cruising
+        const isNarrow = narrowStraits.has(neighbor.node) || narrowStraits.has(curr);
+        edgeCost = isNarrow ? neighbor.dist * 1.15 : neighbor.dist * 0.98;
+      }
+
+      const newD = d + edgeCost;
       if (newD < dist[neighbor.node]!) {
         dist[neighbor.node] = newD;
         prev[neighbor.node] = curr;
@@ -288,18 +312,9 @@ function dijkstraPath(startId: string, endId: string, strategy: 'shortest' | 'sa
     curr = prev[curr];
   }
 
-  return pathKeys.map((nodeKey, idx) => {
+  return pathKeys.map((nodeKey) => {
     const raw = maritimeNodes[nodeKey]!;
-    if (idx === 0 || idx === pathKeys.length - 1 || nodeKey.startsWith('app_') || narrowStraits.has(nodeKey)) {
-      return [raw[0], raw[1]];
-    }
-
-    let latOffset = 0;
-    if (strategy === 'safest') latOffset = 1.2;
-    else if (strategy === 'fuel-efficient') latOffset = -0.8;
-
-    const finalLat = Math.max(-85, Math.min(85, raw[1] + latOffset));
-    return [raw[0], finalLat];
+    return [raw[0], raw[1]];
   });
 }
 
@@ -329,15 +344,25 @@ function interpolateWaypoints(points: [number, number][], steps = 6): [number, n
 }
 
 export function generateMaritimeRoutes(departureId: string, arrivalId: string): MaritimeRouteResult[] {
-  const strategies: Array<{ strategy: 'shortest' | 'safest' | 'fuel-efficient'; label: string; speedKnots: number }> = [
-    { strategy: 'shortest', label: 'Shortest Marine Route', speedKnots: 13 },
-    { strategy: 'safest', label: 'Safest Polar Route', speedKnots: 11.5 },
-    { strategy: 'fuel-efficient', label: 'Fuel-Efficient Route', speedKnots: 12 },
+  // Operational vessel speeds:
+  // Shortest: standard transit speed (13.5 knots)
+  // Safest: cautious speed navigating hazardous corridors (11.8 knots)
+  // Fuel-efficient: optimal hydrodynamic eco-speed (10.8 knots)
+  const strategies: Array<{
+    strategy: 'shortest' | 'safest' | 'fuel-efficient';
+    label: string;
+    speedKnots: number;
+    baseFuelRate: number; // tons/NM at 13.5kn reference
+  }> = [
+    { strategy: 'shortest', label: 'Shortest Marine Route', speedKnots: 13.5, baseFuelRate: 0.12 },
+    { strategy: 'safest', label: 'Safest Polar Route', speedKnots: 11.8, baseFuelRate: 0.12 },
+    { strategy: 'fuel-efficient', label: 'Fuel-Efficient Route', speedKnots: 10.8, baseFuelRate: 0.12 },
   ];
 
   const results: MaritimeRouteResult[] = [];
+  const seenGeometries = new Set<string>();
 
-  for (const { strategy, label, speedKnots } of strategies) {
+  for (const { strategy, label, speedKnots, baseFuelRate } of strategies) {
     const rawPath = dijkstraPath(departureId, arrivalId, strategy);
     if (!rawPath || rawPath.length < 2) continue;
 
@@ -347,16 +372,28 @@ export function generateMaritimeRoutes(departureId: string, arrivalId: string): 
     const durationHours = distanceNm / speedKnots;
     const durationMinutes = Math.round(durationHours * 60);
 
+    // Fuel consumption formula based on marine engine cubic law: P ∝ V^3, SFC ∝ V^2
+    const speedRatio = speedKnots / 13.5;
+    const specificFuelBurnRate = baseFuelRate * Math.pow(speedRatio, 2);
+    const fuelEstimate = Math.round(distanceNm * specificFuelBurnRate * 10) / 10;
+
     const geometry = interpolated.map(([lon, lat]) => ({
       latitude: lat,
       longitude: lon,
     }));
+
+    // Deduplicate identical route geometries
+    const geoKey = `${strategy}-${distanceKm}`;
+    if (seenGeometries.has(geoKey)) continue;
+    seenGeometries.add(geoKey);
 
     results.push({
       strategy,
       label,
       distance: distanceKm,
       duration: durationMinutes,
+      fuelEstimate,
+      speedKnots,
       geometry,
     });
   }
