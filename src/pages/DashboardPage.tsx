@@ -32,6 +32,8 @@ import {
   Play,
   Pause,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { useStore } from '../store';
 import { Iceberg, Port, Ship as ShipType } from '../types';
@@ -100,8 +102,8 @@ type SidebarTab = 'voyage' | 'weather' | 'hazards';
 const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
-  const baseLayerRef = useRef<TileLayer | null>(null);
-  const routeLayerRef = useRef<VectorLayer | null>(null);
+  const baseLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const routeLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
 
   // Tab State: 'voyage' | 'weather' | 'hazards'
   const [activeTab, setActiveTab] = useState<SidebarTab>('voyage');
@@ -491,6 +493,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     } catch (e) {
       console.warn('Map fit error:', e);
     }
+  };
+
+  // Zoom Controls
+  const zoomIn = () => {
+    if (!mapInstanceRef.current) return;
+    const view = mapInstanceRef.current.getView();
+    const currentZoom = view.getZoom() ?? 3.2;
+    view.animate({ zoom: currentZoom + 1, duration: 250 });
+  };
+
+  const zoomOut = () => {
+    if (!mapInstanceRef.current) return;
+    const view = mapInstanceRef.current.getView();
+    const currentZoom = view.getZoom() ?? 3.2;
+    view.animate({ zoom: currentZoom - 1, duration: 250 });
   };
 
   // Export PDF Report handler

@@ -6,6 +6,7 @@ import ResultsDashboardPage from './pages/ResultsDashboardPage';
 import { createNavigationSocket } from './services/socket';
 import { useStore } from './store';
 import { ThemeProvider } from './theme/ThemeProvider';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export type Page = 'home' | 'dashboard' | 'results';
 
@@ -35,23 +36,25 @@ function App() {
       <div className="min-h-screen bg-[#020617] text-slate-200 font-sans">
         <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
 
-        {currentPage === 'home' && (
-          <div className="page-enter">
-            <HomePage onNavigate={handleNavigate} />
-          </div>
-        )}
+        <ErrorBoundary onReset={() => setCurrentPage('home')}>
+          {currentPage === 'home' && (
+            <div className="page-enter">
+              <HomePage onNavigate={handleNavigate} />
+            </div>
+          )}
 
-        {currentPage === 'dashboard' && (
-          <div className="page-enter">
-            <DashboardPage onNavigate={handleNavigate} />
-          </div>
-        )}
+          {currentPage === 'dashboard' && (
+            <div className="page-enter">
+              <DashboardPage onNavigate={handleNavigate} />
+            </div>
+          )}
 
-        {currentPage === 'results' && (
-          <div className="page-enter">
-            <ResultsDashboardPage onNavigate={handleNavigate} />
-          </div>
-        )}
+          {currentPage === 'results' && (
+            <div className="page-enter">
+              <ResultsDashboardPage onNavigate={handleNavigate} />
+            </div>
+          )}
+        </ErrorBoundary>
       </div>
     </ThemeProvider>
   );

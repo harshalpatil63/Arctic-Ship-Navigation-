@@ -19,7 +19,7 @@ import { useStore } from '../store';
 import { generateRoutePDF } from '../utils/pdfReport';
 import RiskBadge from '../components/RiskBadge';
 import {
-  AreaChart, Area,
+  AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from 'recharts';
