@@ -7,6 +7,8 @@ import { persistWeatherObservation } from './services/weatherService.js';
 import { prisma } from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
+import { defaultPorts } from './config/ports.js';
+
 export const app = express();
 app.use(cors({ origin: (origin, callback) => callback(null, true) }));
 app.use(express.json());
@@ -22,30 +24,6 @@ app.get('/api', (_request, response) => response.json({
 }));
 app.get('/api/health', (_request, response) => response.json({ status: 'ok', mode: 'LIVE' }));
 app.get('/api/ports', async (_request, response) => {
-  try {
-    if (process.env.DATABASE_URL) {
-      const ports = await prisma.port.findMany({ orderBy: { name: 'asc' } });
-      if (ports && ports.length > 0) {
-        return response.json({ status: 'LIVE', data: ports });
-      }
-    }
-  } catch (error) {
-    console.warn('Database ports query failed, returning fallback ports:', error);
-  }
-
-  const defaultPorts = [
-    { id: 'p1', name: 'Murmansk', latitude: 68.9585, longitude: 33.0827, country: 'Russia', congestion: 85, description: 'Major Arctic port with year-round operations' },
-    { id: 'p2', name: 'Pevek', latitude: 69.7019, longitude: 170.2999, country: 'Russia', congestion: 45, description: 'Northernmost port in Russia' },
-    { id: 'p3', name: 'Longyearbyen', latitude: 78.2232, longitude: 15.6267, country: 'Norway', congestion: 65, description: 'Main settlement in Svalbard' },
-    { id: 'p4', name: 'Nuuk', latitude: 64.1835, longitude: -51.7216, country: 'Greenland', congestion: 55, description: 'Capital of Greenland' },
-    { id: 'p5', name: 'Tiksi', latitude: 71.6351, longitude: 128.8644, country: 'Russia', congestion: 40, description: 'Important port on Northern Sea Route' },
-    { id: 'p6', name: 'Sabetta', latitude: 71.2714, longitude: 72.0686, country: 'Russia', congestion: 75, description: 'LNG export terminal on Yamal Peninsula' },
-    { id: 'p7', name: 'Churchill', latitude: 58.7684, longitude: -94.1650, country: 'Canada', congestion: 35, description: 'Canadian Arctic port on Hudson Bay' },
-    { id: 'p8', name: 'McMurdo Station', latitude: -77.8419, longitude: 166.6863, country: 'Antarctica', congestion: 30, description: 'Largest Antarctic research station' },
-    { id: 'p9', name: 'Rothera Station', latitude: -67.5674, longitude: -68.1255, country: 'Antarctica', congestion: 25, description: 'British Antarctic Survey station' },
-    { id: 'p10', name: 'Davis Station', latitude: -68.5760, longitude: 77.9689, country: 'Antarctica', congestion: 20, description: 'Australian Antarctic research station' }
-  ];
-
   return response.json({ status: 'LIVE', data: defaultPorts });
 });
 app.get('/api/ships', (_request, response) => response.status(503).json({ status: 'UNAVAILABLE', error: 'Live ship position provider is not configured' }));

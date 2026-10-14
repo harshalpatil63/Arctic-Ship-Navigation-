@@ -49,7 +49,7 @@ const defaultConfig: GEBCORoutingConfig = {
   safetyDepthMarginMeters: 1, // 1m safety clearance
   vesselSpeedKnots: 12, // Typical Arctic navigation speed
   calculateAlternatives: true,
-  boundingBufferDegrees: 1.5,
+  boundingBufferDegrees: 3.0,
 };
 
 export class GEBCOMarineRoutingProvider implements RoutingProvider {

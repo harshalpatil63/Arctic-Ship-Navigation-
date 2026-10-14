@@ -42,10 +42,14 @@ export function isWaterOnlyRoute(
       return { waterOnly: false, valid: false, checkedPoints: index, checkedSegments: 0, reason: 'Route contains invalid latitude/longitude values', invalidPointIndex: index };
     }
 
+    const isEndpoint = index === 0 || index === coordinates.length - 1;
+    if (options.allowLandEndpoints && isEndpoint) {
+      continue;
+    }
+
     const cellIndex = getGridIndex(coordinate.latitude, coordinate.longitude, bounds, resolution);
     const cell = cellIndex ? grid[cellIndex.row]?.[cellIndex.col] : undefined;
-    const isEndpoint = index === 0 || index === coordinates.length - 1;
-    if (!cellIndex || !cell || (!options.allowLandEndpoints || !isEndpoint) && (!cell.isWater || !cell.navigable)) {
+    if (!cellIndex || !cell || !cell.isWater || !cell.navigable) {
       return { waterOnly: false, valid: false, checkedPoints: index + 1, checkedSegments: 0, reason: 'Route point is outside the navigable water grid', invalidPointIndex: index };
     }
   }

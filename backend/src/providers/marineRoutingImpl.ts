@@ -79,7 +79,7 @@ export function createRoutingProvider(
         safetyDepthMarginMeters: 1,
         vesselSpeedKnots: parseInt(process.env.ROUTING_VESSEL_SPEED || '12', 10),
         calculateAlternatives: true,
-        boundingBufferDegrees: 20,
+        boundingBufferDegrees: 5,
       });
 
     case 'unavailable':

@@ -161,6 +161,16 @@ export const useStore = create<AppState>((set, get) => ({
   calculateRoute: async () => {
     const { selectedDeparture, selectedArrival } = get();
     if (!selectedDeparture || !selectedArrival) return;
+    if (selectedDeparture.id === selectedArrival.id) {
+      set({
+        routeStatus: 'error',
+        routeError: 'Departure and arrival ports must be different.',
+        routes: [],
+        currentRoute: null,
+        routeFound: false,
+      });
+      return;
+    }
 
     set({ routeStatus: 'loading', routeError: null, routes: [], currentRoute: null, routeFound: false });
     try {

@@ -21,22 +21,50 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* ---- DARK THEME (default) ---- */
   :root {
     --console-bg: #020617;
-    --console-panel: rgba(15, 23, 42, 0.82);
-    --console-panel-alt: rgba(15, 23, 42, 0.62);
-    --console-border: rgba(148, 163, 184, 0.12);
+    --console-panel: rgba(15, 23, 42, 0.9);
+    --console-panel-alt: rgba(15, 23, 42, 0.7);
+    --console-border: rgba(148, 163, 184, 0.14);
     --console-text: #e2e8f0;
     --console-muted: #94a3b8;
+    --console-label: #64748b;
+    --console-strong: #f8fafc;
+    --console-subtext: #cbd5e1;
+    --console-input-bg: #020617;
+    --console-input-border: rgba(51, 65, 85, 1);
+    --console-input-text: #f8fafc;
+    --console-input-placeholder: #475569;
+    --console-section-bg: rgba(15, 23, 42, 0.6);
+    --console-accent: #06b6d4;
+    --console-accent-muted: rgba(6, 182, 212, 0.15);
+    --scroll-track: #0f172a;
+    --scroll-thumb: #1e293b;
+    --scroll-thumb-hover: #334155;
   }
 
+  /* ---- LIGHT THEME ---- */
   html[data-theme='light'] {
-    --console-bg: #edf6fb;
-    --console-panel: rgba(255, 255, 255, 0.88);
-    --console-panel-alt: rgba(230, 240, 247, 0.8);
-    --console-border: rgba(100, 116, 139, 0.18);
-    --console-text: #102a43;
-    --console-muted: #486581;
+    --console-bg: #f0f6fb;
+    --console-panel: rgba(255, 255, 255, 0.97);
+    --console-panel-alt: rgba(236, 246, 252, 0.95);
+    --console-border: rgba(71, 101, 127, 0.2);
+    --console-text: #0f1f2e;
+    --console-muted: #2d4a63;
+    --console-label: #3b6a8a;
+    --console-strong: #07121d;
+    --console-subtext: #1a3a52;
+    --console-input-bg: #ffffff;
+    --console-input-border: #9bbdd4;
+    --console-input-text: #07121d;
+    --console-input-placeholder: #5f8daa;
+    --console-section-bg: rgba(255, 255, 255, 0.9);
+    --console-accent: #0086a8;
+    --console-accent-muted: rgba(0, 134, 168, 0.12);
+    --scroll-track: #ddeef7;
+    --scroll-thumb: #9bbdd4;
+    --scroll-thumb-hover: #6a9db8;
   }
 
   body {
@@ -44,47 +72,138 @@
     background: var(--console-bg);
     color: var(--console-text);
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  html[data-theme='light'] body {
-    background: var(--console-bg);
-    color: var(--console-text);
-  }
+  /* ----------------------------------------
+     LIGHT THEME OVERRIDES
+     ---------------------------------------- */
 
-  html[data-theme='light'] .bg-\[\#020617\] { background-color: #e8f1f5 !important; }
+  /* Background surfaces */
+  html[data-theme='light'] .bg-\[\#020617\] {
+    background-color: #f0f6fb !important;
+  }
+  html[data-theme='light'] .bg-slate-950,
   html[data-theme='light'] .bg-slate-950\/90,
   html[data-theme='light'] .bg-slate-950\/85,
+  html[data-theme='light'] .bg-slate-950\/80,
+  html[data-theme='light'] .bg-slate-950\/70,
   html[data-theme='light'] .bg-slate-950\/60,
   html[data-theme='light'] .bg-slate-950\/50,
-  html[data-theme='light'] .bg-slate-950\/40 { background-color: rgba(255, 255, 255, 0.86) !important; }
+  html[data-theme='light'] .bg-slate-950\/40 {
+    background-color: rgba(255, 255, 255, 0.97) !important;
+  }
+  html[data-theme='light'] .bg-slate-900\/80,
+  html[data-theme='light'] .bg-slate-900\/90 {
+    background-color: rgba(245, 251, 255, 0.97) !important;
+  }
   html[data-theme='light'] .bg-slate-900\/50,
-  html[data-theme='light'] .bg-slate-900\/60 { background-color: rgba(220, 234, 240, 0.9) !important; }
-  html[data-theme='light'] .text-white { color: #102a43 !important; }
-  html[data-theme='light'] .text-slate-200,
-  html[data-theme='light'] .text-slate-300 { color: #243b53 !important; }
-  html[data-theme='light'] .text-slate-400,
-  html[data-theme='light'] .text-slate-500 { color: #486581 !important; }
-  html[data-theme='light'] .text-slate-600,
-  html[data-theme='light'] .text-slate-700 { color: #627d98 !important; }
+  html[data-theme='light'] .bg-slate-900\/60 {
+    background-color: rgba(235, 247, 253, 0.95) !important;
+  }
+  html[data-theme='light'] .bg-slate-900\/40,
+  html[data-theme='light'] .bg-slate-800\/40,
+  html[data-theme='light'] .bg-slate-800\/20 {
+    background-color: rgba(220, 240, 250, 0.7) !important;
+  }
+  html[data-theme='light'] .bg-slate-950\/60 {
+    background-color: rgba(255, 255, 255, 0.97) !important;
+  }
+
+  /* Text colors */
+  html[data-theme='light'] .text-white {
+    color: #07121d !important;
+  }
+  html[data-theme='light'] .text-slate-100,
+  html[data-theme='light'] .text-slate-200 {
+    color: #0f2233 !important;
+  }
+  html[data-theme='light'] .text-slate-300 {
+    color: #1a3a52 !important;
+  }
+  html[data-theme='light'] .text-slate-400 {
+    color: #2d5570 !important;
+  }
+  html[data-theme='light'] .text-slate-500 {
+    color: #3b6a8a !important;
+  }
+  html[data-theme='light'] .text-slate-600 {
+    color: #4a7c9c !important;
+  }
+  html[data-theme='light'] .text-slate-700 {
+    color: #587f9e !important;
+  }
+
+  /* Borders */
+  html[data-theme='light'] .border-slate-900,
+  html[data-theme='light'] .border-slate-800,
   html[data-theme='light'] .border-slate-800\/50,
   html[data-theme='light'] .border-slate-800\/40,
-  html[data-theme='light'] .border-slate-800 { border-color: rgba(98, 125, 152, 0.28) !important; }
-  html[data-theme='light'] .glass-strong { background: rgba(241, 248, 250, 0.9); }
-  html[data-theme='light'] .glass-light { background: rgba(255, 255, 255, 0.72); }
+  html[data-theme='light'] .border-slate-800\/30 {
+    border-color: rgba(71, 101, 127, 0.25) !important;
+  }
+  html[data-theme='light'] .border-slate-700 {
+    border-color: rgba(71, 101, 127, 0.35) !important;
+  }
+
+  /* Accent overrides */
+  html[data-theme='light'] .text-cyan-400 { color: #0077a0 !important; }
+  html[data-theme='light'] .text-cyan-300 { color: #0086a8 !important; }
+  html[data-theme='light'] .text-cyan-500 { color: #006687 !important; }
+  html[data-theme='light'] .text-emerald-400 { color: #106843 !important; }
+  html[data-theme='light'] .text-emerald-300 { color: #138050 !important; }
+  html[data-theme='light'] .text-amber-400  { color: #8a5c00 !important; }
+  html[data-theme='light'] .text-amber-300  { color: #7a4f00 !important; }
+  html[data-theme='light'] .text-rose-300   { color: #941c2f !important; }
+  html[data-theme='light'] .text-red-400    { color: #8b1a1a !important; }
+  html[data-theme='light'] .text-blue-400   { color: #1a5275 !important; }
+
+  /* Glassmorphism */
+  html[data-theme='light'] .glass-strong {
+    background: rgba(240, 248, 253, 0.97) !important;
+    border-color: rgba(71, 101, 127, 0.2) !important;
+    backdrop-filter: blur(20px);
+  }
+  html[data-theme='light'] .glass-light {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(71, 101, 127, 0.15) !important;
+  }
+  html[data-theme='light'] .glass {
+    background: rgba(240, 248, 253, 0.9) !important;
+    border-color: rgba(71, 101, 127, 0.2) !important;
+  }
+
+  /* Form inputs */
+  html[data-theme='light'] select,
+  html[data-theme='light'] input[type='range'] {
+    background-color: #ffffff !important;
+    color: #07121d !important;
+    border-color: #9bbdd4 !important;
+  }
+  html[data-theme='light'] select option {
+    background-color: #ffffff;
+    color: #07121d;
+  }
+
+  /* Section headers */
+  html[data-theme='light'] h2,
+  html[data-theme='light'] h3 {
+    color: #07121d;
+  }
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: var(--scroll-track);
   }
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: var(--scroll-thumb);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: var(--scroll-thumb-hover);
   }
 }
 
@@ -178,6 +297,37 @@
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }
+
+  /* Panel label style — high contrast in both themes */
+  .panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--console-label);
+  }
+
+  /* Panel value — always highest contrast */
+  .panel-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--console-strong);
+  }
+
+  /* Panel section header */
+  .section-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--console-subtext);
+  }
+
+  /* Data muted label */
+  .data-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--console-label);
+  }
 }
 
 /* ========================================
@@ -268,4 +418,27 @@
 }
 .ol-attribution {
   display: none !important;
+}
+
+/* Light mode map controls */
+html[data-theme='light'] .ol-zoom button {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #07121d !important;
+  border-color: rgba(71, 101, 127, 0.3) !important;
+}
+html[data-theme='light'] .ol-zoom button:hover {
+  background: rgba(230, 245, 252, 0.98) !important;
+  border-color: rgba(0, 134, 168, 0.5) !important;
+}
+
+/* ========================================
+   Weather Panel Label Fix
+   ======================================== */
+html[data-theme='light'] .weather-label {
+  color: #2d5570 !important;
+  font-weight: 700;
+}
+html[data-theme='light'] .weather-value {
+  color: #07121d !important;
+  font-weight: 700;
 }

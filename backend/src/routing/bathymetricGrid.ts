@@ -105,13 +105,19 @@ export function getGEBCODepth(latitude: number, longitude: number): number {
   // Barents Sea - includes Tromsø and Longyearbyen region
   // Tromsø: 69.6°N, 18.9°E
   // Longyearbyen: 78.2°N, 15.6°E
-  if (lat > 68 && lat < 81 && lon > 10 && lon < 35) {
+  if (lat > 68 && lat < 81 && lon > 10 && lon < 40) {
     // Barents Sea is generally 200-400m deep
     // Make it consistently navigable with good depth
     const baseDepth = 350 + Math.sin(lat * 0.1) * 100 + Math.cos(lon * 0.1) * 80;
     return -Math.max(200, Math.min(500, baseDepth)); // Always 200-500m deep
   }
 
+  // Norwegian coast & Tromsø fjord system
+  if (lat > 65 && lat < 72 && lon > 13 && lon < 22) {
+    // Coastal Norwegian waters - deeper fjords
+    const depth = 200 + Math.sin(lat * 0.2) * 80 + Math.cos(lon * 0.15) * 60;
+    return -Math.max(80, Math.min(400, depth));
+  }
   // Greenland Sea (west of Svalbard) - deeper
   if (lat > 70 && lat < 82 && lon > -20 && lon < 10) {
     const depth = 1500 + Math.sin(lat * 0.08) * 500 + Math.cos(lon * 0.04) * 300;
@@ -146,6 +152,54 @@ export function getGEBCODepth(latitude: number, longitude: number): number {
   if (lat > 68 && lat < 78 && lon > -180 && lon < -130) {
     const depth = 2000 + Math.sin(lat * 0.06) * 700 + Math.cos(lon * 0.04) * 400;
     return -Math.max(1000, Math.min(3500, depth));
+  }
+
+  // White Sea (Arkhangelsk region) - shallow shelf sea
+  if (lat > 63 && lat < 67 && lon > 32 && lon < 45) {
+    const depth = 120 + Math.sin(lat * 0.25) * 50 + Math.cos(lon * 0.15) * 40;
+    return -Math.max(30, Math.min(200, depth));
+  }
+
+  // Kola Bay / inlet (Murmansk approach) - deeper navigable channel
+  if (lat > 68.5 && lat < 69.5 && lon > 32.5 && lon < 34.0) {
+    const depth = 180 + Math.sin(lat * 0.3) * 60;
+    return -Math.max(60, Math.min(300, depth));
+  }
+
+  // Hudson Bay (Churchill region) - shallow
+  if (lat > 57 && lat < 63 && lon > -97 && lon < -82) {
+    const depth = 100 + Math.sin(lat * 0.2) * 40 + Math.cos(lon * 0.1) * 30;
+    return -Math.max(30, Math.min(200, depth));
+  }
+
+  // Chaunskaya Bay (Pevek region) - East Siberian shelf
+  if (lat > 68 && lat < 71 && lon > 168 && lon < 174) {
+    const depth = 80 + Math.sin(lat * 0.3) * 30 + Math.cos(lon * 0.1) * 25;
+    return -Math.max(20, Math.min(150, depth));
+  }
+
+  // East Siberian Sea (connecting Tiksi / Pevek)
+  if (lat > 70 && lat < 76 && lon > 128 && lon < 175) {
+    const depth = 60 + Math.sin(lat * 0.15) * 25 + Math.cos(lon * 0.05) * 20;
+    return -Math.max(15, Math.min(120, depth));
+  }
+
+  // Laptev Sea (Tiksi region)
+  if (lat > 71 && lat < 78 && lon > 115 && lon < 140) {
+    const depth = 100 + Math.sin(lat * 0.12) * 40 + Math.cos(lon * 0.08) * 30;
+    return -Math.max(20, Math.min(180, depth));
+  }
+
+  // Ob Bay / Gulf of Ob (Sabetta region)
+  if (lat > 68 && lat < 73 && lon > 68 && lon < 76) {
+    const depth = 90 + Math.sin(lat * 0.2) * 35;
+    return -Math.max(15, Math.min(160, depth));
+  }
+
+  // Davis Strait / Baffin Bay approaches
+  if (lat > 61 && lat < 68 && lon > -57 && lon < -45) {
+    const depth = 400 + Math.sin(lat * 0.1) * 150;
+    return -Math.max(100, Math.min(800, depth));
   }
 
   // Deterministic deep-water fallback. It is intentionally stable between
@@ -277,7 +331,7 @@ export function getGridIndex(
 export function getNearestNavigableGridIndex(
   grid: BathymetricCell[][],
   origin: { row: number; col: number },
-  maxRadius = 4
+  maxRadius = 10
 ): { row: number; col: number } | null {
   return getNearbyNavigableGridIndices(grid, origin, maxRadius)[0] || null;
 }
@@ -285,8 +339,8 @@ export function getNearestNavigableGridIndex(
 export function getNearbyNavigableGridIndices(
   grid: BathymetricCell[][],
   origin: { row: number; col: number },
-  maxRadius = 4,
-  limit = 24
+  maxRadius = 10,
+  limit = 48
 ): Array<{ row: number; col: number }> {
   const rowCount = grid.length;
   const colCount = grid[0]?.length || 0;
@@ -316,7 +370,7 @@ export function getGridCoordinates(
   resolution: number
 ): { latitude: number; longitude: number } {
   return {
-    latitude: bounds.south + row * resolution,
-    longitude: bounds.west + col * resolution,
+    latitude: bounds.south + (row + 0.5) * resolution,
+    longitude: bounds.west + (col + 0.5) * resolution,
   };
 }

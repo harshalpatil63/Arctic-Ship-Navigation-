@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
+import ResultsDashboardPage from './pages/ResultsDashboardPage';
 import { createNavigationSocket } from './services/socket';
 import { useStore } from './store';
 import { ThemeProvider } from './theme/ThemeProvider';
 
-type Page = 'home' | 'dashboard';
+export type Page = 'home' | 'dashboard' | 'results';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -34,15 +35,21 @@ function App() {
       <div className="min-h-screen bg-[#020617] text-slate-200 font-sans">
         <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
 
-      {currentPage === 'home' && (
-        <div className="page-enter">
-          <HomePage onNavigate={handleNavigate} />
-        </div>
-      )}
+        {currentPage === 'home' && (
+          <div className="page-enter">
+            <HomePage onNavigate={handleNavigate} />
+          </div>
+        )}
 
         {currentPage === 'dashboard' && (
           <div className="page-enter">
             <DashboardPage onNavigate={handleNavigate} />
+          </div>
+        )}
+
+        {currentPage === 'results' && (
+          <div className="page-enter">
+            <ResultsDashboardPage onNavigate={handleNavigate} />
           </div>
         )}
       </div>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Navigation, Home, BarChart3, Menu, X, Sun, Moon } from 'lucide-react';
+import { Navigation, Home, BarChart3, Menu, X, Sun, Moon, Map } from 'lucide-react';
 import { useStore } from '../store';
 import { useTheme } from '../theme/themeContext';
 
 interface NavbarProps {
-  currentPage: 'home' | 'dashboard';
-  onNavigate: (page: 'home' | 'dashboard') => void;
+  currentPage: 'home' | 'dashboard' | 'results';
+  onNavigate: (page: 'home' | 'dashboard' | 'results') => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
@@ -13,6 +13,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const websocketConnected = useStore((state) => state.websocketConnected);
   const apiStatus = useStore((state) => state.apiStatus);
+  const currentRoute = useStore((state) => state.currentRoute);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -23,7 +24,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
   const navLinks = [
     { id: 'home' as const, label: 'Home', icon: Home },
-    { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
+    { id: 'dashboard' as const, label: 'Voyage Planner', icon: Map },
+    ...(currentRoute ? [{ id: 'results' as const, label: 'Results Dashboard', icon: BarChart3 }] : []),
   ];
 
   return (
